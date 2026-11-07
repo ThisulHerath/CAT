@@ -1,6 +1,7 @@
 import './style.css';
 import Matter from 'matter-js';
 import { CATS, DROP_INTERVAL, MAX_CATS, OVERFLOW_TIME, clamp, canMerge, chooseNext, readSaved } from './rules.js';
+import { CollisionRewards, soundProfile } from './feedback.js';
 
 const { Engine, Bodies, Body, Composite, Events } = Matter;
 const $ = (id) => document.getElementById(id);
@@ -17,10 +18,13 @@ let mode = 'ready', score = 0, next = 0, aim = 300, lastDrop = -Infinity;
 let cats = new Map(), mergeQueue = [], particles = [], effects = [], unlocked = new Set([0]);
 let overflow = 0, held = false, holdSince = 0, lastTime = 0, accumulator = 0, renderWidth = 0;
 let musicFailed = false, audioContext, soundAttempt = 0;
+let bassFilter, effectsGain, peakLevel = 0, lastEffectSound = -Infinity;
+const collisionRewards = new CollisionRewards();
 const soundtrack = new Audio('/assets/soundtrack.mp3');
 soundtrack.loop = true;
 soundtrack.volume = 0.48;
 soundtrack.preload = 'none';
+soundtrack.preservesPitch = false;
 const images = CATS.map(cat => { const image = new Image(); image.src = `/assets/${cat.key}.webp`; return image; });
 const icons = {
   sound: '<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -43,6 +47,7 @@ function updateSoundButton() {
 }
 function syncSound() {
   const attempt = ++soundAttempt;
+  if (effectsGain) effectsGain.gain.setValueAtTime(muted || mode !== 'playing' ? 0 : 1, audioContext.currentTime);
   if (muted || mode !== 'playing') soundtrack.pause();
   else soundtrack.play().then(() => {
     if (attempt !== soundAttempt) return;
@@ -61,16 +66,52 @@ function toggleSound() {
   persist('cat-cascade-muted', muted);
   syncSound();
 }
-function mergeSound(level) {
+function setupAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaElementSource(soundtrack);
+    bassFilter = audioContext.createBiquadFilter();
+    bassFilter.type = 'lowshelf'; bassFilter.frequency.value = 200;
+    const compressor = audioContext.createDynamicsCompressor();
+    compressor.threshold.value = -18; compressor.knee.value = 20; compressor.ratio.value = 4;
+    effectsGain = audioContext.createGain();
+    source.connect(bassFilter); bassFilter.connect(compressor);
+    effectsGain.connect(compressor); compressor.connect(audioContext.destination);
+  }
+  audioContext.resume().catch(() => {});
+}
+function updateSoundDepth() {
+  const profile = soundProfile(peakLevel);
+  soundtrack.playbackRate = profile.playbackRate;
+  if (bassFilter) bassFilter.gain.setTargetAtTime(profile.bassGain, audioContext.currentTime, .2);
+}
+function catSound(level, merge = false) {
   if (muted || !audioContext || audioContext.state !== 'running') return;
-  const oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(220 + level * 65, audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(600 + level * 85, audioContext.currentTime + .08);
-  gain.gain.setValueAtTime(.055, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(.001, audioContext.currentTime + .14);
-  oscillator.connect(gain); gain.connect(audioContext.destination);
-  oscillator.start(); oscillator.stop(audioContext.currentTime + .15);
+  const now = audioContext.currentTime;
+  if (!merge && now - lastEffectSound < .09) return;
+  lastEffectSound = now;
+  const profile = soundProfile(level);
+  const duration = profile.duration * (merge ? 1 : .55);
+  // A rounded fundamental, a sub-bass layer, and a soft overtone give bigger
+  // cats a fuller voice without merely increasing their volume.
+  for (const [ratio, weight, type] of [[1, .09, 'triangle'], [.5, profile.subWeight * .3, 'sine'], [2, .018, 'sine']]) {
+    const oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(profile.frequency * ratio * (merge ? 1.45 : 1), now);
+    oscillator.frequency.exponentialRampToValueAtTime(profile.frequency * ratio * .65, now + duration);
+    gain.gain.setValueAtTime(.0001, now);
+    gain.gain.exponentialRampToValueAtTime(weight * (merge ? 1 : .45), now + .008);
+    gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+    oscillator.connect(gain); gain.connect(effectsGain);
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    oscillator.start(now); oscillator.stop(now + duration + .02);
+  }
+}
+function awardPoints(points, x, y, level, kind) {
+  score += points; updateScore();
+  $('score-feedback').textContent = `+${points} ${kind.toUpperCase()}`;
+  if (effects.length >= 30) effects.shift();
+  effects.push({ x, y, text: `+${points} ${kind}`, life: 1, color: CATS[level].color, small: kind === 'bump' });
 }
 
 // The collision shell is made once. Its gap and neck match the reference bowl.
@@ -99,6 +140,7 @@ function addCat(level, x, y, velocity = null) {
 function clearCats() {
   for (const cat of cats.values()) Composite.remove(engine.world, cat);
   cats.clear(); mergeQueue = []; particles = []; effects = [];
+  collisionRewards.clear();
   Engine.clear(engine);
 }
 function updateScore() {
@@ -115,6 +157,7 @@ function updateNext() {
 function updateCollection(level) {
   if (unlocked.has(level)) return;
   unlocked.add(level);
+  if (level > peakLevel) { peakLevel = level; updateSoundDepth(); }
   document.querySelector(`[data-level="${level}"]`).classList.add('unlocked');
   $('announcement').textContent = `${CATS[level].name} unlocked!`;
   $('game-status').textContent = `${CATS[level].name} just entered the chat.`;
@@ -129,6 +172,8 @@ function updateCount() { $('cat-count').textContent = `${cats.size} ${cats.size 
 
 function startGame() {
   clearCats(); mode = 'playing'; score = 0; overflow = 0; lastDrop = -Infinity; held = false; aim = 300;
+  peakLevel = 0; lastEffectSound = -Infinity;
+  $('score-feedback').textContent = '';
   unlocked = new Set([0]);
   document.querySelectorAll('.evolution-item').forEach((element, i) => element.classList.toggle('unlocked', i === 0));
   next = chooseNext(); updateNext(); updateScore(); updateCount();
@@ -138,7 +183,8 @@ function startGame() {
   $('pause-button').setAttribute('aria-label', 'Pause game');
   $('game-status').textContent = 'Click or tap to drop. Hold for cat rain.';
   soundtrack.currentTime = 0;
-  try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); audioContext.resume().catch(() => {}); } catch { /* Soundtrack still works without synthesized effects. */ }
+  try { setupAudio(); } catch { /* Soundtrack still works without synthesized effects. */ }
+  updateSoundDepth();
   syncSound(); canvas.focus({ preventScroll: true });
   lastTime = performance.now(); accumulator = 0;
 }
@@ -185,7 +231,21 @@ function dropCat() {
 }
 
 Events.on(engine, 'collisionStart', ({ pairs }) => {
-  for (const { bodyA, bodyB } of pairs) if (canMerge(bodyA, bodyB)) mergeQueue.push([bodyA.id, bodyB.id]);
+  if (mode !== 'playing') return;
+  // Merge candidates receive their evolution bonus instead of a second bump
+  // reward from other simultaneous contacts during the same physics step.
+  const merging = new Set();
+  for (const { bodyA, bodyB } of pairs) if (canMerge(bodyA, bodyB)) {
+    mergeQueue.push([bodyA.id, bodyB.id]); merging.add(bodyA.id); merging.add(bodyB.id);
+  }
+  for (const { bodyA, bodyB } of pairs) {
+    if (merging.has(bodyA.id) || merging.has(bodyB.id)) continue;
+    const points = collisionRewards.award(bodyA, bodyB, engine.timing.timestamp);
+    if (!points) continue;
+    const level = Math.max(bodyA.catLevel, bodyB.catLevel);
+    awardPoints(points, (bodyA.position.x + bodyB.position.x) / 2, (bodyA.position.y + bodyB.position.y) / 2, level, 'bump');
+    catSound(level);
+  }
 });
 function resolveMerges() {
   const pending = mergeQueue; mergeQueue = [];
@@ -197,13 +257,13 @@ function resolveMerges() {
     const velocity = { x: clamp((a.velocity.x + b.velocity.x) / 2, -4, 4), y: -1.6 };
     a.removed = true; b.removed = true;
     Composite.remove(engine.world, [a, b]); cats.delete(idA); cats.delete(idB);
+    collisionRewards.forget(idA); collisionRewards.forget(idB);
     // Keep a newly enlarged body within the inner wall instead of embedding it.
     const distance = Math.hypot(x - CX, y - CY), limit = RADIUS - CATS[level].radius - 9;
     const factor = distance > limit ? limit / distance : 1;
     addCat(level, CX + (x - CX) * factor, CY + (y - CY) * factor, velocity);
     if (mode === 'playing') {
-      score += CATS[level].points; updateScore(); updateCollection(level); mergeSound(level);
-      effects.push({ x, y, text: `+${CATS[level].points}`, life: 1, color: CATS[level].color });
+      awardPoints(CATS[level].points, x, y, level, 'merge'); updateCollection(level); catSound(level, true);
       if (!reducedMotion) for (let i = 0; i < 10 && particles.length < 100; i++) {
         const angle = Math.random() * Math.PI * 2;
         particles.push({ x, y, vx: Math.cos(angle) * (1 + Math.random() * 3), vy: Math.sin(angle) * 3, life: 1, color: CATS[level].color });
@@ -270,7 +330,7 @@ function render(time, dt) {
   for (const effect of effects) {
     if (mode === 'playing') { effect.life -= dt / 850; effect.y -= dt * .035; }
     ctx.globalAlpha = Math.max(0, effect.life); ctx.fillStyle = effect.color;
-    ctx.font = '600 19px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(effect.text, effect.x, effect.y);
+    ctx.font = `600 ${effect.small ? 13 : 19}px "Space Grotesk", sans-serif`; ctx.textAlign = 'center'; ctx.fillText(effect.text, effect.x, effect.y);
   }
   effects = effects.filter(e => e.life > 0); ctx.globalAlpha = 1;
 }

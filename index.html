@@ -22,7 +22,7 @@
           <p class="intro-copy">Drop a cat. Find its twin. <br />Watch things get a little unhinged.</p>
           <div class="instruction-list">
             <div><span class="step">01</span><p><strong>Drop the drama</strong><span>Move to aim. Click or tap to drop.</span></p></div>
-            <div><span class="step">02</span><p><strong>Same cat, new energy</strong><span>Matching cats merge into a bigger meme.</span></p></div>
+            <div><span class="step">02</span><p><strong>Same cat, new energy</strong><span>Bumps earn points. Matching cats merge for more.</span></p></div>
             <div><span class="step">03</span><p><strong>Keep your cool</strong><span>Don’t let the bowl overflow.</span></p></div>
           </div>
           <div class="keyboard-note"><kbd>←</kbd><kbd>→</kbd> aim <span>·</span> <kbd>space</kbd> drop <span>·</span> <kbd>P</kbd> pause</div>
@@ -31,7 +31,7 @@
 
         <section class="game-panel" aria-label="Cat merge game">
           <div class="game-toolbar"><div class="game-tag"><span></span> THE CAT CONTAINER</div><div class="toolbar-actions"><button id="pause-button" class="icon-button small" aria-label="Pause game" title="Pause (P)" disabled></button><button id="restart-button" class="icon-button small" aria-label="Restart game" title="Restart game"></button></div></div>
-          <div class="scorebar"><div><span class="stat-label">YOUR SCORE</span><strong id="score">0000</strong></div><div class="best-score"><span class="stat-label">♕ PERSONAL BEST</span><strong id="best">0000</strong></div></div>
+          <div class="scorebar"><div><span class="stat-label">YOUR SCORE</span><div class="score-total"><strong id="score">0000</strong><span id="score-feedback" class="score-feedback"></span></div></div><div class="best-score"><span class="stat-label">♕ PERSONAL BEST</span><strong id="best">0000</strong></div></div>
           <div class="playfield" id="playfield">
             <canvas id="game" width="600" height="680" tabindex="0" role="img" aria-label="Cat bowl. Use left and right arrows to aim, space to drop, and P to pause."></canvas>
             <div class="game-overlay" id="overlay">
