@@ -2,12 +2,15 @@ import { CATS, clamp } from './rules.js';
 
 export function soundProfile(level) {
   const tier = clamp(level, 0, CATS.length - 1);
+  const hardness = clamp((tier - 1) / (CATS.length - 2), 0, 1);
   return {
-    frequency: 320 * Math.pow(.77, tier),
-    duration: .16 + tier * .055,
-    subWeight: .08 + tier * .055,
-    playbackRate: 1 - tier * .037,
-    bassGain: tier * 1.35,
+    frequency: 430 * Math.pow(.74, Math.max(0, tier - 1)),
+    duration: .22 + hardness * .28,
+    subWeight: .04 + hardness * .4,
+    hardness,
+    attack: .018 * Math.pow(.085, hardness),
+    drive: 1 + hardness * 6,
+    transient: Math.pow(hardness, 1.5) * .42,
   };
 }
 

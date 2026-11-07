@@ -19,7 +19,7 @@ Open the local URL printed by Vite. For production, run `npm run build` and serv
 - Hold to keep dropping cats.
 - Left/right arrows aim; Space drops; P or Escape pauses; M toggles audio.
 - Music begins after starting. The speaker button controls music and merge sounds.
-- Each new largest cat lowers the soundtrack pitch and adds bass. Larger cats have deeper, fuller collision and merge effects.
+- Small merges play a soft, smooth pop. Each larger merge has a faster attack, more grit, and a heavier bass tail, progressing to a crunchy thump for the biggest cats. Each effect follows the size of that merge. Background music retains its original pitch and tempo.
 - Solid cat-to-cat bumps award 2–17 points based on cat size and impact speed. The same pair can score again after 2.4 seconds, with a 650 ms cooldown per cat. Resting contacts and bowl hits do not score. Matching cats receive their larger evolution bonus instead of a bump bonus.
 - Keep the neck clear. A settled cat above the line for 2.4 seconds ends the round.
 

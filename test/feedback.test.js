@@ -4,14 +4,17 @@ import { CollisionRewards, impactSpeed, soundProfile } from '../src/feedback.js'
 
 const cat = (id, catLevel = 0, x = 0, vx = 4) => ({ id, catLevel, position: { x, y: 0 }, velocity: { x: vx, y: 0 } });
 
-test('larger cats have a deeper voice, longer resonance, and stronger bass', () => {
-  for (let level = 1; level < 7; level++) {
+test('merge sounds progress from soft attacks to harder, grittier impacts', () => {
+  assert.equal(soundProfile(1).hardness, 0);
+  assert.equal(soundProfile(1).transient, 0);
+  for (let level = 2; level < 7; level++) {
     const before = soundProfile(level - 1), after = soundProfile(level);
     assert.ok(after.frequency < before.frequency);
     assert.ok(after.duration > before.duration);
     assert.ok(after.subWeight > before.subWeight);
-    assert.ok(after.playbackRate < before.playbackRate);
-    assert.ok(after.bassGain > before.bassGain);
+    assert.ok(after.attack < before.attack);
+    assert.ok(after.drive > before.drive);
+    assert.ok(after.transient > before.transient);
   }
 });
 test('only approaching impacts count, excluding sliding and separating cats', () => {

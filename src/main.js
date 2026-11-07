@@ -2,6 +2,7 @@ import './style.css';
 import Matter from 'matter-js';
 import { CATS, DROP_INTERVAL, MAX_CATS, OVERFLOW_TIME, clamp, canMerge, chooseNext, readSaved } from './rules.js';
 import { CollisionRewards, soundProfile } from './feedback.js';
+import { synthesizeMerge } from './merge-audio.js';
 
 const { Engine, Bodies, Body, Composite, Events } = Matter;
 const $ = (id) => document.getElementById(id);
@@ -18,13 +19,13 @@ let mode = 'ready', score = 0, next = 0, aim = 300, lastDrop = -Infinity;
 let cats = new Map(), mergeQueue = [], particles = [], effects = [], unlocked = new Set([0]);
 let overflow = 0, held = false, holdSince = 0, lastTime = 0, accumulator = 0, renderWidth = 0;
 let musicFailed = false, audioContext, soundAttempt = 0;
-let bassFilter, effectsGain, peakLevel = 0, lastEffectSound = -Infinity;
+let effectsGain, lastEffectSound = -Infinity;
+const mergeBuffers = new Map();
 const collisionRewards = new CollisionRewards();
 const soundtrack = new Audio('/assets/soundtrack.mp3');
 soundtrack.loop = true;
 soundtrack.volume = 0.48;
 soundtrack.preload = 'none';
-soundtrack.preservesPitch = false;
 const images = CATS.map(cat => { const image = new Image(); image.src = `/assets/${cat.key}.webp`; return image; });
 const icons = {
   sound: '<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -69,27 +70,31 @@ function toggleSound() {
 function setupAudio() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaElementSource(soundtrack);
-    bassFilter = audioContext.createBiquadFilter();
-    bassFilter.type = 'lowshelf'; bassFilter.frequency.value = 200;
     const compressor = audioContext.createDynamicsCompressor();
     compressor.threshold.value = -18; compressor.knee.value = 20; compressor.ratio.value = 4;
     effectsGain = audioContext.createGain();
-    source.connect(bassFilter); bassFilter.connect(compressor);
     effectsGain.connect(compressor); compressor.connect(audioContext.destination);
   }
   audioContext.resume().catch(() => {});
-}
-function updateSoundDepth() {
-  const profile = soundProfile(peakLevel);
-  soundtrack.playbackRate = profile.playbackRate;
-  if (bassFilter) bassFilter.gain.setTargetAtTime(profile.bassGain, audioContext.currentTime, .2);
 }
 function catSound(level, merge = false) {
   if (muted || !audioContext || audioContext.state !== 'running') return;
   const now = audioContext.currentTime;
   if (!merge && now - lastEffectSound < .09) return;
   lastEffectSound = now;
+  if (merge) {
+    if (!mergeBuffers.has(level)) {
+      const samples = synthesizeMerge(level, audioContext.sampleRate);
+      const buffer = audioContext.createBuffer(1, samples.length, audioContext.sampleRate);
+      buffer.copyToChannel(samples, 0); mergeBuffers.set(level, buffer);
+    }
+    const source = audioContext.createBufferSource(), gain = audioContext.createGain();
+    source.buffer = mergeBuffers.get(level); gain.gain.value = .28;
+    source.connect(gain); gain.connect(effectsGain);
+    source.onended = () => { source.disconnect(); gain.disconnect(); };
+    source.start(now);
+    return;
+  }
   const profile = soundProfile(level);
   const duration = profile.duration * (merge ? 1 : .55);
   // A rounded fundamental, a sub-bass layer, and a soft overtone give bigger
@@ -157,7 +162,6 @@ function updateNext() {
 function updateCollection(level) {
   if (unlocked.has(level)) return;
   unlocked.add(level);
-  if (level > peakLevel) { peakLevel = level; updateSoundDepth(); }
   document.querySelector(`[data-level="${level}"]`).classList.add('unlocked');
   $('announcement').textContent = `${CATS[level].name} unlocked!`;
   $('game-status').textContent = `${CATS[level].name} just entered the chat.`;
@@ -172,7 +176,7 @@ function updateCount() { $('cat-count').textContent = `${cats.size} ${cats.size 
 
 function startGame() {
   clearCats(); mode = 'playing'; score = 0; overflow = 0; lastDrop = -Infinity; held = false; aim = 300;
-  peakLevel = 0; lastEffectSound = -Infinity;
+  lastEffectSound = -Infinity;
   $('score-feedback').textContent = '';
   unlocked = new Set([0]);
   document.querySelectorAll('.evolution-item').forEach((element, i) => element.classList.toggle('unlocked', i === 0));
@@ -184,7 +188,6 @@ function startGame() {
   $('game-status').textContent = 'Click or tap to drop. Hold for cat rain.';
   soundtrack.currentTime = 0;
   try { setupAudio(); } catch { /* Soundtrack still works without synthesized effects. */ }
-  updateSoundDepth();
   syncSound(); canvas.focus({ preventScroll: true });
   lastTime = performance.now(); accumulator = 0;
 }
