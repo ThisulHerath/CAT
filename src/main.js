@@ -41,9 +41,11 @@ $('evolution-list').innerHTML = CATS.map((cat, index) => `<div class="evolution-
 
 function persist(key, value) { try { localStorage.setItem(key, String(value)); } catch { /* Game works with storage disabled. */ } }
 function updateSoundButton() {
-  $('sound-button').innerHTML = svg(muted ? 'muted' : 'sound');
-  $('sound-button').setAttribute('aria-label', muted ? 'Enable sound' : 'Mute sound');
-  $('sound-button').setAttribute('aria-pressed', String(!muted));
+  for (const id of ['sound-button', 'game-sound-button']) {
+    $(id).innerHTML = svg(muted ? 'muted' : 'sound');
+    $(id).setAttribute('aria-label', muted ? 'Enable sound' : 'Mute sound');
+    $(id).setAttribute('aria-pressed', String(!muted));
+  }
   document.body.classList.toggle('music-playing', !muted && mode === 'playing' && !musicFailed);
 }
 function syncSound() {
@@ -114,7 +116,7 @@ function catSound(level, merge = false) {
 }
 function awardPoints(points, x, y, level, kind) {
   score += points; updateScore();
-  $('score-feedback').textContent = `+${points} ${kind.toUpperCase()}`;
+  document.querySelectorAll('[data-score-feedback]').forEach(element => { element.textContent = `+${points} ${kind.toUpperCase()}`; });
   if (effects.length >= 30) effects.shift();
   effects.push({ x, y, text: `+${points} ${kind}`, life: 1, color: CATS[level].color, small: kind === 'bump' });
 }
@@ -149,13 +151,15 @@ function clearCats() {
   Engine.clear(engine);
 }
 function updateScore() {
-  $('score').textContent = String(score).padStart(4, '0');
+  document.querySelectorAll('[data-score]').forEach(element => { element.textContent = String(score).padStart(4, '0'); });
   if (score > best) { best = score; persist('cat-cascade-best', best); }
-  $('best').textContent = String(best).padStart(4, '0');
+  document.querySelectorAll('[data-best]').forEach(element => { element.textContent = String(best).padStart(4, '0'); });
 }
 function updateNext() {
   $('next-image').src = images[next].src;
   $('next-image').alt = `Next cat: ${CATS[next].name}`;
+  $('mobile-next-image').src = images[next].src;
+  $('mobile-next-image').alt = `Next cat: ${CATS[next].name}`;
   $('next-name').textContent = CATS[next].name;
   $('next-level').textContent = `LEVEL ${String(next + 1).padStart(2, '0')}`;
 }
@@ -173,11 +177,20 @@ function updateCollection(level) {
   }
 }
 function updateCount() { $('cat-count').textContent = `${cats.size} ${cats.size === 1 ? 'cat' : 'cats'} in the bowl`; }
+function updateTouchControls() {
+  $('drop-button').disabled = mode !== 'playing';
+  $('aim-input').disabled = mode !== 'playing';
+}
+function setAim(value) {
+  aim = clamp(Number(value), 88, 512);
+  $('aim-input').value = String(aim);
+}
 
 function startGame() {
   clearCats(); mode = 'playing'; score = 0; overflow = 0; lastDrop = -Infinity; held = false; aim = 300;
   lastEffectSound = -Infinity;
-  $('score-feedback').textContent = '';
+  document.querySelectorAll('[data-score-feedback]').forEach(element => { element.textContent = ''; });
+  setAim(300); updateTouchControls();
   unlocked = new Set([0]);
   document.querySelectorAll('.evolution-item').forEach((element, i) => element.classList.toggle('unlocked', i === 0));
   next = chooseNext(); updateNext(); updateScore(); updateCount();
@@ -210,7 +223,7 @@ function pauseGame() {
     $('pause-button').innerHTML = svg('pause'); $('pause-button').setAttribute('aria-label', 'Pause game');
     lastTime = performance.now(); accumulator = 0; canvas.focus({ preventScroll: true });
   }
-  syncSound();
+  updateTouchControls(); syncSound();
 }
 function gameOver() {
   mode = 'over'; held = false;
@@ -219,7 +232,7 @@ function gameOver() {
   $('pause-button').disabled = true;
   $('game-status').textContent = 'Full bowl. Full heart.';
   $('announcement').textContent = `Game over. Final score ${score}.`;
-  syncSound();
+  updateTouchControls(); syncSound();
 }
 function dropCat() {
   const now = performance.now();
@@ -370,7 +383,7 @@ function resize() {
 new ResizeObserver(resize).observe(canvas);
 function pointerAim(event) {
   const rect = canvas.getBoundingClientRect();
-  aim = clamp((event.clientX - rect.left) / rect.width * WIDTH, 88, 512);
+  setAim((event.clientX - rect.left) / rect.width * WIDTH);
 }
 canvas.addEventListener('pointermove', pointerAim);
 canvas.addEventListener('pointerdown', event => {
@@ -379,18 +392,27 @@ canvas.addEventListener('pointerdown', event => {
   canvas.setPointerCapture(event.pointerId); canvas.focus({ preventScroll: true }); dropCat();
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, () => { held = false; });
+$('aim-input').addEventListener('input', event => setAim(event.target.value));
+$('drop-button').addEventListener('pointerdown', event => {
+  if (mode !== 'playing' || event.button > 0) return;
+  held = true; holdSince = performance.now();
+  event.currentTarget.setPointerCapture(event.pointerId); dropCat();
+});
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) $('drop-button').addEventListener(name, () => { held = false; });
+$('drop-button').addEventListener('click', event => { if (event.detail === 0) dropCat(); });
 $('start-button').addEventListener('click', () => mode === 'paused' ? pauseGame() : startGame());
 $('pause-button').addEventListener('click', pauseGame);
 $('restart-button').addEventListener('click', startGame);
 $('sound-button').addEventListener('click', toggleSound);
+$('game-sound-button').addEventListener('click', toggleSound);
 document.addEventListener('keydown', event => {
-  if (event.target instanceof HTMLButtonElement || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.target instanceof HTMLButtonElement || event.target instanceof HTMLInputElement || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.code === 'KeyM' && !event.repeat) toggleSound();
   if ((event.code === 'KeyP' || event.code === 'Escape') && !event.repeat) pauseGame();
   if (mode !== 'playing') return;
   if (['ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
-  if (event.code === 'ArrowLeft') aim = clamp(aim - 30, 88, 512);
-  if (event.code === 'ArrowRight') aim = clamp(aim + 30, 88, 512);
+  if (event.code === 'ArrowLeft') setAim(aim - 30);
+  if (event.code === 'ArrowRight') setAim(aim + 30);
   if (event.code === 'Space') dropCat();
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'playing') pauseGame(); });

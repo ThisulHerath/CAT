@@ -13,10 +13,15 @@ npm run dev
 
 Open the local URL printed by Vite. For production, run `npm run build` and serve the `dist` directory. `npm run preview` previews that build. `npm test` runs the game-rule checks.
 
+## Updating the hosted game
+
+Local edits do not automatically update the live game. Build and deploy a new version to the existing Site identified by `.openai/hosting.json`. The public URL and hosting project stay the same; there is no need to create a new Site. Ask Codex to publish your changes after editing.
+
 ## Controls
 
 - Move the pointer or drag on touch to aim; click or tap to drop.
 - Hold to keep dropping cats.
+- On phones, use the thumb-friendly aim slider and Drop cat button, or tap the bowl directly. Score, best score, and the next cat stay beside the pause/restart controls. The board adapts to short screens and landscape orientation.
 - Left/right arrows aim; Space drops; P or Escape pauses; M toggles audio.
 - Music begins after starting. The speaker button controls music and merge sounds.
 - Small merges play a soft, smooth pop. Each larger merge has a faster attack, more grit, and a heavier bass tail, progressing to a crunchy thump for the biggest cats. Each effect follows the size of that merge. Background music retains its original pitch and tempo.

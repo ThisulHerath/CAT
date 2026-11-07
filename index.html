@@ -30,8 +30,8 @@
         </section>
 
         <section class="game-panel" aria-label="Cat merge game">
-          <div class="game-toolbar"><div class="game-tag"><span></span> THE CAT CONTAINER</div><div class="toolbar-actions"><button id="pause-button" class="icon-button small" aria-label="Pause game" title="Pause (P)" disabled></button><button id="restart-button" class="icon-button small" aria-label="Restart game" title="Restart game"></button></div></div>
-          <div class="scorebar"><div><span class="stat-label">YOUR SCORE</span><div class="score-total"><strong id="score">0000</strong><span id="score-feedback" class="score-feedback"></span></div></div><div class="best-score"><span class="stat-label">♕ PERSONAL BEST</span><strong id="best">0000</strong></div></div>
+          <div class="game-toolbar"><div class="game-tag"><span></span> THE CAT CONTAINER</div><div class="mobile-stats"><div><span>SCORE</span><strong data-score>0000</strong></div><div class="mobile-best"><span>BEST</span><strong data-best>0000</strong></div><div class="mobile-next"><span>NEXT</span><img id="mobile-next-image" src="/assets/tiny.webp" alt="Next cat: Tiny menace" /></div></div><div class="toolbar-actions"><button id="game-sound-button" class="icon-button small game-sound-button" aria-label="Mute sound" title="Toggle sound (M)"></button><button id="pause-button" class="icon-button small" aria-label="Pause game" title="Pause (P)" disabled></button><button id="restart-button" class="icon-button small" aria-label="Restart game" title="Restart game"></button></div></div>
+          <div class="scorebar"><div><span class="stat-label">YOUR SCORE</span><div class="score-total"><strong id="score" data-score>0000</strong><span id="score-feedback" class="score-feedback" data-score-feedback></span></div></div><div class="best-score"><span class="stat-label">♕ PERSONAL BEST</span><strong id="best" data-best>0000</strong></div></div>
           <div class="playfield" id="playfield">
             <canvas id="game" width="600" height="680" tabindex="0" role="img" aria-label="Cat bowl. Use left and right arrows to aim, space to drop, and P to pause."></canvas>
             <div class="game-overlay" id="overlay">
@@ -46,6 +46,8 @@
             </div>
             <div id="merge-callout" class="merge-callout" aria-hidden="true"></div>
           </div>
+          <div class="touch-controls"><label class="aim-control" for="aim-input"><span>AIM</span><input id="aim-input" type="range" min="88" max="512" step="1" value="300" aria-label="Aim cat left or right" disabled /></label><button id="drop-button" class="drop-button" disabled>Drop cat <span aria-hidden="true">↓</span></button></div>
+          <div class="mobile-reward" data-score-feedback aria-live="off"></div>
           <div class="game-bottom"><span id="game-status" role="status">Good things come in purrs.</span><span class="live-dot"></span><span id="cat-count">0 cats, endless potential</span></div>
         </section>
 
