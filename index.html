@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0c10" />
+    <meta name="description" content="A little chaos. A lot of cats. Drop, bounce, and merge your way to the ultimate meme cat in Cat Cascade." />
+    <title>Cat Cascade — let the cats out.</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="site-header">
+        <a class="brand" href="./" aria-label="Cat Cascade home"><span class="brand-icon">↟</span> cat<span class="brand-light">cascade</span><span class="beta">PLAY</span></a>
+        <div class="header-right"><span class="offline-note"><i></i> small game. big cat energy.</span><button id="sound-button" class="icon-button" aria-label="Mute sound" title="Toggle sound (M)"></button></div>
+      </header>
+
+      <main class="layout">
+        <section class="intro" aria-labelledby="title">
+          <div class="eyebrow"><span class="tiny-star">✳</span> THE INTERNET, IN A BOWL.</div>
+          <h1 id="title">Let the <br />cats <span class="serif">out.</span><span class="title-star">✳</span></h1>
+          <p class="intro-copy">Drop a cat. Find its twin. <br />Watch things get a little unhinged.</p>
+          <div class="instruction-list">
+            <div><span class="step">01</span><p><strong>Drop the drama</strong><span>Move to aim. Click or tap to drop.</span></p></div>
+            <div><span class="step">02</span><p><strong>Same cat, new energy</strong><span>Matching cats merge into a bigger meme.</span></p></div>
+            <div><span class="step">03</span><p><strong>Keep your cool</strong><span>Don’t let the bowl overflow.</span></p></div>
+          </div>
+          <div class="keyboard-note"><kbd>←</kbd><kbd>→</kbd> aim <span>·</span> <kbd>space</kbd> drop <span>·</span> <kbd>P</kbd> pause</div>
+          <div class="little-note"><span>↳</span> one more cat couldn’t hurt, right?</div>
+        </section>
+
+        <section class="game-panel" aria-label="Cat merge game">
+          <div class="game-toolbar"><div class="game-tag"><span></span> THE CAT CONTAINER</div><div class="toolbar-actions"><button id="pause-button" class="icon-button small" aria-label="Pause game" title="Pause (P)" disabled></button><button id="restart-button" class="icon-button small" aria-label="Restart game" title="Restart game"></button></div></div>
+          <div class="scorebar"><div><span class="stat-label">YOUR SCORE</span><strong id="score">0000</strong></div><div class="best-score"><span class="stat-label">♕ PERSONAL BEST</span><strong id="best">0000</strong></div></div>
+          <div class="playfield" id="playfield">
+            <canvas id="game" width="600" height="680" tabindex="0" role="img" aria-label="Cat bowl. Use left and right arrows to aim, space to drop, and P to pause."></canvas>
+            <div class="game-overlay" id="overlay">
+              <div class="overlay-content">
+                <span class="pill" id="overlay-kicker">100% CAT. 0% SERIOUS.</span>
+                <div class="overlay-cat"><img src="/assets/smile.webp" alt="Smiling meme cat" /></div>
+                <h2 id="overlay-title">Chaos looks good<br />on you.</h2>
+                <p id="overlay-copy">A tiny drop. A very big personality.</p>
+                <button id="start-button" class="start-button"><span id="start-label">Start game</span><span>↗</span></button>
+                <span class="start-hint" id="start-hint">Sound on for the full experience</span>
+              </div>
+            </div>
+            <div id="merge-callout" class="merge-callout" aria-hidden="true"></div>
+          </div>
+          <div class="game-bottom"><span id="game-status" role="status">Good things come in purrs.</span><span class="live-dot"></span><span id="cat-count">0 cats, endless potential</span></div>
+        </section>
+
+        <aside class="sidebar">
+          <section class="next-card"><div class="card-heading"><span>UP NEXT</span><span class="corner-arrow">↘</span></div><div class="next-cat"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><img id="next-image" src="/assets/tiny.webp" alt="Next cat: Tiny" /></div><div class="next-info"><strong id="next-name">Tiny menace</strong><span id="next-level">LEVEL 01</span></div></section>
+          <section class="evolution"><div class="card-heading"><span>THE GLOW UP</span><span class="muted">01—07</span></div><p>Every cat has a final form.</p><div class="evolution-list" id="evolution-list"></div><div class="evolution-footer"><span>✦</span> Meet the final boss.</div></section>
+          <div class="sound-note"><div class="equalizer"><i></i><i></i><i></i><i></i></div><p>Same chaos.<br /><strong>Original video soundtrack.</strong></p></div>
+        </aside>
+      </main>
+      <footer class="site-footer"><span>MADE FOR YOUR <span class="footer-lime">FREETIME.</span></span><span class="footer-middle">a beautifully pointless little obsession</span><span>STAY SILLY <span class="footer-lime">✳</span></span></footer>
+      <div class="sr-only" id="announcement" aria-live="polite"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
